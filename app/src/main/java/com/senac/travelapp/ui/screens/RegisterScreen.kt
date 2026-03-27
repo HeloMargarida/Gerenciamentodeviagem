@@ -7,16 +7,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.senac.travelapp.ui.viewmodel.AuthViewModel
 
 @Composable
-fun RegisterScreen(navController: NavController) {
+fun RegisterScreen(
+    navController: NavController,
+    viewModel: AuthViewModel
+) {
 
     var nome by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var telefone by remember { mutableStateOf("") }
     var senha by remember { mutableStateOf("") }
     var confirmar by remember { mutableStateOf("") }
-
     var erro by remember { mutableStateOf("") }
 
     Column(
@@ -26,10 +29,7 @@ fun RegisterScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center
     ) {
 
-        Text(
-            text = "Cadastro",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text("Cadastro", style = MaterialTheme.typography.headlineMedium)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -73,29 +73,18 @@ fun RegisterScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(10.dp))
 
         if (erro.isNotEmpty()) {
-            Text(
-                text = erro,
-                color = MaterialTheme.colorScheme.error
-            )
+            Text(erro, color = MaterialTheme.colorScheme.error)
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
         Button(
             onClick = {
-                if (
-                    nome.isEmpty() ||
-                    email.isEmpty() ||
-                    telefone.isEmpty() ||
-                    senha.isEmpty() ||
-                    confirmar.isEmpty()
-                ) {
-                    erro = "Preencha todos os campos"
-                } else if (senha != confirmar) {
-                    erro = "As senhas não coincidem"
-                } else {
+                if (viewModel.register(nome, email, telefone, senha, confirmar)) {
                     erro = ""
                     navController.navigate("login")
+                } else {
+                    erro = "Preencha todos os campos corretamente"
                 }
             },
             modifier = Modifier.fillMaxWidth()

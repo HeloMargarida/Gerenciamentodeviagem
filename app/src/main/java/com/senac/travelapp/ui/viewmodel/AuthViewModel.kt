@@ -29,15 +29,25 @@ class AuthViewModel : ViewModel() {
             senha != confirmar
         ) return false
 
-        user = User(nome, email, telefone, senha)
+        // 🔥 NORMALIZA AO SALVAR
+        val emailNormalizado = email.trim().lowercase()
+
+        user = User(nome, emailNormalizado, telefone, senha)
+
         return true
     }
 
     fun login(email: String, senha: String): Boolean {
-        return user?.email == email && user?.senha == senha
+        val emailDigitado = email.trim().lowercase()
+        val emailSalvo = user?.email
+
+        return emailSalvo == emailDigitado && user?.senha == senha
     }
 
     fun forgotPassword(email: String): Boolean {
-        return user?.email == email
+        val emailDigitado = email.trim().lowercase()
+        val emailSalvo = user?.email
+
+        return emailSalvo == emailDigitado
     }
 }

@@ -2,6 +2,6 @@ package com.senac.travelapp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val BluePrimary = Color(0xFF1976D2)
-val BlueSecondary = Color(0xFF42A5F5)
-val GrayBackground = Color(0xFFF5F5F5)
+val GreenPrimary = Color(0xFF4CAF50) // verde principal
+val GreenSecondary = Color(0xFF81C784) // verde claro
+val BackgroundLight = Color(0xFFE8F5E9) // fundo suaveGrayBackground = Color(0xFFF5F5F5)

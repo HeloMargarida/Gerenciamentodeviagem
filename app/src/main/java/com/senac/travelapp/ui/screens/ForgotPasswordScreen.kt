@@ -5,13 +5,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.senac.travelapp.ui.viewmodel.AuthViewModel
 
 @Composable
-fun ForgotPasswordScreen(navController: NavController) {
+fun ForgotPasswordScreen(
+    navController: NavController,
+    viewModel: AuthViewModel
+) {
 
     var email by remember { mutableStateOf("") }
     var erro by remember { mutableStateOf("") }
+
+    val viewModel: AuthViewModel = viewModel()
 
     Column(
         modifier = Modifier
@@ -20,10 +27,7 @@ fun ForgotPasswordScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center
     ) {
 
-        Text(
-            text = "Recuperar Senha",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text("Recuperar Senha", style = MaterialTheme.typography.headlineMedium)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -37,21 +41,18 @@ fun ForgotPasswordScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(10.dp))
 
         if (erro.isNotEmpty()) {
-            Text(
-                text = erro,
-                color = MaterialTheme.colorScheme.error
-            )
+            Text(erro, color = MaterialTheme.colorScheme.error)
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
         Button(
             onClick = {
-                if (email.isEmpty()) {
-                    erro = "Digite um e-mail"
-                } else {
+                if (viewModel.forgotPassword(email)) {
                     erro = ""
                     navController.navigate("login")
+                } else {
+                    erro = "E-mail não encontrado"
                 }
             },
             modifier = Modifier.fillMaxWidth()
