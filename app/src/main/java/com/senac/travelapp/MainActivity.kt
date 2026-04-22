@@ -15,8 +15,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TravelAppTheme {
-
-                // 🔥 ViewModel único para todo o app
                 val viewModel: AuthViewModel = viewModel()
                 AppNavigation(viewModel)
             }

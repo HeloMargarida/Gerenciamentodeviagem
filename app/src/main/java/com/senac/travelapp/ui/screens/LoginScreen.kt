@@ -49,7 +49,7 @@ fun LoginScreen(
 
         // ✈️ TEXTO
         Text(
-            text = "Bem-vindo!",
+            text = "Bem-Vindo!",
             style = MaterialTheme.typography.headlineMedium
         )
 
