@@ -16,18 +16,17 @@ import com.senac.travelapp.ui.viewmodel.AuthViewModel
 @Composable
 fun ForgotPasswordScreen(
     navController: NavController,
-    viewModel: AuthViewModel          // ✅ Usa apenas o parâmetro, sem redeclarar
+    viewModel: AuthViewModel
 ) {
     var email by remember { mutableStateOf("") }
     var erro by remember { mutableStateOf("") }
-    var sucesso by remember { mutableStateOf(false) }   // ✅ Estado de sucesso
+    var sucesso by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Recuperar Senha") },
                 navigationIcon = {
-                    // ✅ Botão de voltar na TopBar
                     IconButton(onClick = { navController.navigate("login") }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
@@ -61,7 +60,7 @@ fun ForgotPasswordScreen(
                 value = email,
                 onValueChange = {
                     email = it
-                    erro = ""       // ✅ Limpa erro ao digitar
+                    erro = ""
                     sucesso = false
                 },
                 label = { Text("E-mail") },
@@ -72,7 +71,6 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ✅ Mensagem de erro
             if (erro.isNotEmpty()) {
                 Text(
                     text = erro,
@@ -82,7 +80,6 @@ fun ForgotPasswordScreen(
                 )
             }
 
-            // ✅ Mensagem de sucesso
             if (sucesso) {
                 Text(
                     text = "✅ Instruções enviadas para $email",
@@ -97,23 +94,23 @@ fun ForgotPasswordScreen(
             Button(
                 onClick = {
                     val emailNormalizado = email.trim().lowercase()
-
                     when {
-                        // ✅ Validação: campo vazio
                         emailNormalizado.isEmpty() -> {
                             erro = "Preencha o e-mail"
                         }
-                        // ✅ Validação: formato inválido
                         !android.util.Patterns.EMAIL_ADDRESS.matcher(emailNormalizado).matches() -> {
                             erro = "Formato de e-mail inválido"
                         }
-                        // ✅ Tenta recuperar senha
-                        viewModel.forgotPassword(emailNormalizado) -> {
-                            erro = ""
-                            sucesso = true
-                        }
                         else -> {
-                            erro = "E-mail não encontrado"
+                            // Busca no Room via callback
+                            viewModel.forgotPassword(emailNormalizado) { encontrado ->
+                                if (encontrado) {
+                                    erro = ""
+                                    sucesso = true
+                                } else {
+                                    erro = "E-mail não encontrado"
+                                }
+                            }
                         }
                     }
                 },
@@ -126,7 +123,6 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ✅ Botão secundário de voltar ao login
             TextButton(
                 onClick = { navController.navigate("login") },
                 modifier = Modifier.fillMaxWidth()

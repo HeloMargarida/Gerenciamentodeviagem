@@ -11,24 +11,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.senac.travelapp.ui.viewmodel.AuthViewModel
+import com.senac.travelapp.ui.viewmodel.RegisterViewModel
 
 @Composable
 fun RegisterScreen(
-    navController: NavController,
-    viewModel: AuthViewModel
+    navController: NavController
 ) {
-    val state by viewModel.registerState.collectAsState()
+    val registerViewModel: RegisterViewModel = viewModel()
+    val state by registerViewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var nome by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var telefone by remember { mutableStateOf("") }
-    var senha by remember { mutableStateOf("") }
-    var confirmar by remember { mutableStateOf("") }
-
-    // Snackbar de sucesso → depois navega para login
+    // Snackbar de sucesso
     LaunchedEffect(state.successMessage) {
         state.successMessage?.let { message ->
             snackbarHostState.showSnackbar(
@@ -36,14 +31,14 @@ fun RegisterScreen(
                 actionLabel = "OK",
                 duration = SnackbarDuration.Short
             )
-            viewModel.onSuccessAcknowledged()
+            registerViewModel.onSuccessAcknowledged()
         }
     }
 
-    // Navegar para Login após sucesso confirmado
+    // Navegar para Login após sucesso
     LaunchedEffect(state.navigateToLogin) {
         if (state.navigateToLogin) {
-            viewModel.onNavigatedToLogin()
+            registerViewModel.onNavigatedToLogin()
             navController.navigate("login") {
                 popUpTo("register") { inclusive = true }
             }
@@ -71,8 +66,8 @@ fun RegisterScreen(
             )
 
             OutlinedTextField(
-                value = nome,
-                onValueChange = { nome = it },
+                value = state.nome,
+                onValueChange = registerViewModel::onNomeChange,
                 label = { Text("Nome completo") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -81,8 +76,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
+                value = state.email,
+                onValueChange = registerViewModel::onEmailChange,
                 label = { Text("E-mail") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -92,8 +87,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = telefone,
-                onValueChange = { telefone = it },
+                value = state.telefone,
+                onValueChange = registerViewModel::onTelefoneChange,
                 label = { Text("Telefone") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -103,8 +98,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = senha,
-                onValueChange = { senha = it },
+                value = state.senha,
+                onValueChange = registerViewModel::onSenhaChange,
                 label = { Text("Senha") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
@@ -115,8 +110,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = confirmar,
-                onValueChange = { confirmar = it },
+                value = state.confirmar,
+                onValueChange = registerViewModel::onConfirmarChange,
                 label = { Text("Confirmar senha") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
@@ -124,7 +119,6 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Erro inline
             state.errorMessage?.let { error ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -137,9 +131,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = {
-                    viewModel.register(nome, email, telefone, senha, confirmar)
-                },
+                onClick = registerViewModel::register,
                 enabled = !state.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()

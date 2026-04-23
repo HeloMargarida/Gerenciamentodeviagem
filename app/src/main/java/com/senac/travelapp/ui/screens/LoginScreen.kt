@@ -22,11 +22,21 @@ fun LoginScreen(
     navController: NavController,
     viewModel: AuthViewModel
 ) {
-
     var email by remember { mutableStateOf("") }
     var senha by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
-    var erro by remember { mutableStateOf("") }
+
+    val state by viewModel.loginState.collectAsState()
+
+    // Navegar para menu após login bem-sucedido
+    LaunchedEffect(state.navigateToMenu) {
+        if (state.navigateToMenu) {
+            viewModel.onNavigatedToMenu()
+            navController.navigate("menu") {
+                popUpTo("login") { inclusive = true }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -35,7 +45,6 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
 
-        // 📸 IMAGEM
         Image(
             painter = painterResource(id = R.drawable.travel),
             contentDescription = "Imagem de viagem",
@@ -47,7 +56,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ✈️ TEXTO
         Text(
             text = "Bem-Vindo!",
             style = MaterialTheme.typography.headlineMedium
@@ -85,7 +93,6 @@ fun LoginScreen(
                     Icons.Filled.Visibility
                 else
                     Icons.Filled.VisibilityOff
-
                 IconButton(onClick = { showPassword = !showPassword }) {
                     Icon(icon, contentDescription = null)
                 }
@@ -94,33 +101,31 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        if (erro.isNotEmpty()) {
+        // Erro vindo do ViewModel
+        state.errorMessage?.let { erro ->
             Text(
                 text = erro,
                 color = MaterialTheme.colorScheme.error
             )
+            Spacer(modifier = Modifier.height(10.dp))
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
         Button(
-            onClick = {
-                val emailNormalizado = email.trim().lowercase()
-
-                if (emailNormalizado.isEmpty() || senha.isEmpty()) {
-                    erro = "Preencha todos os campos"
-                } else if (!viewModel.login(emailNormalizado, senha)) {
-                    erro = "Usuário não cadastrado"
-                } else {
-                    erro = ""
-                    navController.navigate("menu")
-                }
-            },
+            onClick = { viewModel.login(email, senha) },
+            enabled = !state.isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
-            Text("Login")
+            if (state.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Login")
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))

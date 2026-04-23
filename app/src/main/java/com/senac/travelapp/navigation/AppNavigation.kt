@@ -24,19 +24,17 @@ fun AppNavigation(viewModel: AuthViewModel) {
         }
 
         composable("register") {
-            RegisterScreen(navController, viewModel)
+            RegisterScreen(navController)  // ← sem viewModel
         }
 
         composable("forgot") {
             ForgotPasswordScreen(navController, viewModel)
         }
 
-        // 🔥 CORREÇÃO AQUI
         composable("menu") {
             MenuScreen(navController)
         }
 
-        // 🔥 TELAS TEMPORÁRIAS (pra navegação funcionar)
         composable("viagens") {
             Text("Tela de Viagens")
         }
