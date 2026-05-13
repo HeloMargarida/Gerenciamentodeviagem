@@ -25,7 +25,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _loginState = MutableStateFlow(LoginUiState())
     val loginState: StateFlow<LoginUiState> = _loginState.asStateFlow()
 
-    // ── Login buscando no Room ────────────────────────────────────────────
+    private val _loggedUserId = MutableStateFlow(0)
+    val loggedUserId: StateFlow<Int> = _loggedUserId.asStateFlow()
+
     fun login(email: String, senha: String) {
         val emailNormalizado = email.trim().lowercase()
 
@@ -36,13 +38,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             _loginState.value = LoginUiState(isLoading = true)
-
             val user = repository.getUserByEmail(emailNormalizado)
 
             _loginState.value = when {
                 user == null -> LoginUiState(errorMessage = "Usuário não cadastrado.")
                 user.senha != senha -> LoginUiState(errorMessage = "Senha incorreta.")
-                else -> LoginUiState(navigateToMenu = true)
+                else -> {
+                    _loggedUserId.value = user.id
+                    LoginUiState(navigateToMenu = true)
+                }
             }
         }
     }
@@ -51,7 +55,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _loginState.value = LoginUiState()
     }
 
-    // ── Forgot Password buscando no Room ──────────────────────────────────
     fun forgotPassword(email: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val user = repository.getUserByEmail(email.trim().lowercase())
@@ -59,3 +62,4 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+ 

@@ -1,11 +1,19 @@
 package com.senac.travelapp.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.navigation.compose.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.senac.travelapp.ui.screens.ForgotPasswordScreen
 import com.senac.travelapp.ui.screens.LoginScreen
 import com.senac.travelapp.ui.screens.MenuScreen
+import com.senac.travelapp.ui.screens.MyTravelsScreen
+import com.senac.travelapp.ui.screens.NewTravelScreen
 import com.senac.travelapp.ui.screens.RegisterScreen
 import com.senac.travelapp.ui.viewmodel.AuthViewModel
 
@@ -24,7 +32,7 @@ fun AppNavigation(viewModel: AuthViewModel) {
         }
 
         composable("register") {
-            RegisterScreen(navController)  // ← sem viewModel
+            RegisterScreen(navController)
         }
 
         composable("forgot") {
@@ -36,15 +44,26 @@ fun AppNavigation(viewModel: AuthViewModel) {
         }
 
         composable("viagens") {
-            Text("Tela de Viagens")
+            MyTravelsScreen(
+                navController = navController,
+                authViewModel = viewModel
+            )
         }
 
         composable("nova_viagem") {
-            Text("Nova Viagem")
+            NewTravelScreen(
+                navController = navController,
+                authViewModel = viewModel
+            )
         }
 
-        composable("perfil") {
-            Text("Perfil")
+        composable("sobre") {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Travel App v1.0\nDesenvolvido para o trabalho de SENAC.")
+            }
         }
     }
 }

@@ -25,5 +25,7 @@ class UserRepository(private val userDao: UserDao) {
         }
     }
 
-    suspend fun getUserByEmail(email: String) = userDao.getUserByEmail(email)
+    suspend fun getUserByEmail(email: String): UserEntity? {
+        return userDao.getUserByEmail(email)
+    }
 }

@@ -31,7 +31,6 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
 
-    // ── Atualização dos campos ────────────────────────────────────────────
     fun onNomeChange(value: String) {
         _uiState.value = _uiState.value.copy(nome = value, errorMessage = null)
     }
@@ -52,11 +51,9 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
         _uiState.value = _uiState.value.copy(confirmar = value, errorMessage = null)
     }
 
-    // ── Lógica de registro ───────────────────────────────────────────────
     fun register() {
         val state = _uiState.value
 
-        // Validações
         if (state.nome.isBlank() || state.email.isBlank() ||
             state.telefone.isBlank() || state.senha.isBlank()
         ) {
@@ -96,7 +93,6 @@ class RegisterViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // ── Navegação ────────────────────────────────────────────────────────
     fun onSuccessAcknowledged() {
         _uiState.value = _uiState.value.copy(
             successMessage = null,

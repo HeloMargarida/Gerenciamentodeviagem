@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.senac.travelapp"
-        minSdk = 24
+        minSdk = 26                // ← era 24, agora 26 para usar java.time.*
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -50,7 +50,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    // Material Icons Extended (Visibility, VisibilityOff, etc.)
+    // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended")
 
     // Navigation
@@ -63,6 +63,9 @@ dependencies {
 
     // ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+    // collectAsStateWithLifecycle  ← dependência que estava faltando
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
