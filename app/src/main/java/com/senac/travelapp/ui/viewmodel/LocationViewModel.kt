@@ -29,9 +29,6 @@ sealed class LocationUiState {
 
 class LocationViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val fusedClient =
-        LocationServices.getFusedLocationProviderClient(application)
-
     private val travelDao =
         AppDatabase.getInstance(application).travelDao()
 
@@ -43,23 +40,8 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _uiState.value = LocationUiState.Loading
             try {
-                // getLastLocation é mais confiável no emulador
-                val location = fusedClient.lastLocation.await()
-
-                if (location == null) {
-                    _uiState.value = LocationUiState.Error(
-                        "Localização não disponível. Defina uma localização no emulador."
-                    )
-                    return@launch
-                }
-
-                val cidade = getCidade(location.latitude, location.longitude)
-                if (cidade == null) {
-                    _uiState.value = LocationUiState.Error(
-                        "Não foi possível determinar a cidade."
-                    )
-                    return@launch
-                }
+                // 🔧 TEMPORÁRIO: cidade fixa para teste
+                val cidade = "Blumenau"
 
                 val hoje = LocalDate.now()
                     .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
@@ -79,23 +61,6 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
             } catch (e: Exception) {
                 _uiState.value = LocationUiState.Error("Erro: ${e.localizedMessage}")
             }
-        }
-    }
-
-    private fun getCidade(lat: Double, lng: Double): String? {
-        val geocoder = Geocoder(getApplication(), Locale.getDefault())
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            var resultado: String? = null
-            val latch = java.util.concurrent.CountDownLatch(1)
-            geocoder.getFromLocation(lat, lng, 1) { addresses ->
-                resultado = addresses.firstOrNull()?.locality
-                latch.countDown()
-            }
-            latch.await()
-            resultado
-        } else {
-            @Suppress("DEPRECATION")
-            geocoder.getFromLocation(lat, lng, 1)?.firstOrNull()?.locality
         }
     }
 }
