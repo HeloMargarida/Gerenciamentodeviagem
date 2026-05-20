@@ -1,3 +1,4 @@
+
 package com.senac.travelapp.data.local.entity
 
 import androidx.room.Entity
@@ -12,5 +13,7 @@ data class TravelEntity(
     val dataInicio: String,
     val dataFim: String,
     val orcamento: Double,
-    val userId: Int
+    val userId: Int,
+    val gastos: Double = 0.0   // NOVO: total de gastos (por enquanto sempre 0)
 )
+

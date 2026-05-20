@@ -133,15 +133,14 @@ fun MyTravelsScreen(
                         }
                     )
 
+                    // CORREÇÃO: usar currentValue em vez de dismissDirection (removido da API)
+                    val swipeAtivo = dismissState.currentValue != SwipeToDismissBoxValue.Settled
+
                     SwipeToDismissBox(
                         state = dismissState,
                         backgroundContent = {
                             val color by animateColorAsState(
-                                targetValue = when (dismissState.dismissDirection) {
-                                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFFD32F2F)
-                                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFD32F2F)
-                                    else -> Color.Transparent
-                                },
+                                targetValue = if (swipeAtivo) Color(0xFFD32F2F) else Color.Transparent,
                                 label = "swipe_color"
                             )
                             Box(
@@ -151,11 +150,13 @@ fun MyTravelsScreen(
                                     .padding(horizontal = 20.dp),
                                 contentAlignment = Alignment.CenterEnd
                             ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Excluir",
-                                    tint = Color.White
-                                )
+                                if (swipeAtivo) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Excluir",
+                                        tint = Color.White
+                                    )
+                                }
                             }
                         }
                     ) {
@@ -360,18 +361,18 @@ private fun EditTravelDialog(
         confirmButton = {
             Button(onClick = {
                 when {
-                    destino.isBlank() -> erro = "Informe o destino."
-                    dataInicio.isBlank() -> erro = "Informe a data de início."
-                    dataFim.isBlank() -> erro = "Informe a data de fim."
-                    orcamento.isBlank() -> erro = "Informe o orçamento."
+                    destino.isBlank()              -> erro = "Informe o destino."
+                    dataInicio.isBlank()           -> erro = "Informe a data de início."
+                    dataFim.isBlank()              -> erro = "Informe a data de fim."
+                    orcamento.isBlank()            -> erro = "Informe o orçamento."
                     orcamento.toDoubleOrNull() == null -> erro = "Orçamento inválido."
                     else -> onConfirm(
                         viagem.copy(
-                            destino = destino.trim(),
-                            tipo = tipo,
+                            destino    = destino.trim(),
+                            tipo       = tipo,
                             dataInicio = dataInicio,
-                            dataFim = dataFim,
-                            orcamento = orcamento.toDouble()
+                            dataFim    = dataFim,
+                            orcamento  = orcamento.toDouble()
                         )
                     )
                 }

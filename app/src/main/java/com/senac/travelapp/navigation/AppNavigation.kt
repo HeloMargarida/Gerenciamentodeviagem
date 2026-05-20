@@ -40,7 +40,10 @@ fun AppNavigation(viewModel: AuthViewModel) {
         }
 
         composable("menu") {
-            MenuScreen(navController)
+            MenuScreen(
+                navController = navController,
+                authViewModel = viewModel
+            )
         }
 
         composable("viagens") {

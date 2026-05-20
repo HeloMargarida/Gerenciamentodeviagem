@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -30,8 +31,14 @@ fun NewTravelScreen(
 ) {
     val loggedUserId by authViewModel.loggedUserId.collectAsState()
 
+    // Se não houver usuário logado, volta para o login imediatamente
+    if (loggedUserId == 0) {
+        LaunchedEffect(Unit) { navController.popBackStack() }
+        return
+    }
+
     var destino by remember { mutableStateOf("") }
-    var tipo by remember { mutableStateOf("Lazer") }          // "Lazer" | "Negócios"
+    var tipo by remember { mutableStateOf("Lazer") }
     var dataInicio by remember { mutableStateOf("") }
     var dataFim by remember { mutableStateOf("") }
     var orcamento by remember { mutableStateOf("") }
@@ -128,7 +135,7 @@ fun NewTravelScreen(
             Text("Tipo de viagem", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 listOf("Lazer", "Negócios").forEach { opcao ->
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(
                             selected = tipo == opcao,
                             onClick = { tipo = opcao }
@@ -189,20 +196,20 @@ fun NewTravelScreen(
             Button(
                 onClick = {
                     when {
-                        destino.isBlank() -> erro = "Informe o destino."
-                        dataInicio.isBlank() -> erro = "Informe a data de início."
-                        dataFim.isBlank() -> erro = "Informe a data de fim."
-                        orcamento.isBlank() -> erro = "Informe o orçamento."
+                        destino.isBlank()              -> erro = "Informe o destino."
+                        dataInicio.isBlank()           -> erro = "Informe a data de início."
+                        dataFim.isBlank()              -> erro = "Informe a data de fim."
+                        orcamento.isBlank()            -> erro = "Informe o orçamento."
                         orcamento.toDoubleOrNull() == null -> erro = "Orçamento inválido."
                         else -> {
                             travelViewModel.insertTravel(
                                 TravelEntity(
-                                    destino = destino.trim(),
-                                    tipo = tipo,
+                                    destino    = destino.trim(),
+                                    tipo       = tipo,
                                     dataInicio = dataInicio,
-                                    dataFim = dataFim,
-                                    orcamento = orcamento.toDouble(),
-                                    userId = loggedUserId
+                                    dataFim    = dataFim,
+                                    orcamento  = orcamento.toDouble(),
+                                    userId     = loggedUserId
                                 )
                             )
                             navController.popBackStack()
