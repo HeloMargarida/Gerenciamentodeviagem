@@ -6,15 +6,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.senac.travelapp.ui.screens.ForgotPasswordScreen
 import com.senac.travelapp.ui.screens.LoginScreen
 import com.senac.travelapp.ui.screens.MenuScreen
 import com.senac.travelapp.ui.screens.MyTravelsScreen
 import com.senac.travelapp.ui.screens.NewTravelScreen
 import com.senac.travelapp.ui.screens.RegisterScreen
+import com.senac.travelapp.ui.screens.TravelPhotoScreen
 import com.senac.travelapp.ui.viewmodel.AuthViewModel
 
 @Composable
@@ -57,6 +60,23 @@ fun AppNavigation(viewModel: AuthViewModel) {
             NewTravelScreen(
                 navController = navController,
                 authViewModel = viewModel
+            )
+        }
+
+        // ── Tela de fotos da viagem ativa ─────────────────────────────
+        composable(
+            route = "fotos/{travelId}/{destino}",
+            arguments = listOf(
+                navArgument("travelId") { type = NavType.IntType },
+                navArgument("destino")  { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val travelId = backStackEntry.arguments?.getInt("travelId") ?: 0
+            val destino  = backStackEntry.arguments?.getString("destino") ?: ""
+            TravelPhotoScreen(
+                travelId      = travelId,
+                travelDestino = destino,
+                navController = navController
             )
         }
 

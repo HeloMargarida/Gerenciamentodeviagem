@@ -1,23 +1,28 @@
 package com.senac.travelapp.ui.screens
 
 import android.Manifest
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -25,7 +30,18 @@ import com.senac.travelapp.data.local.entity.TravelEntity
 import com.senac.travelapp.ui.viewmodel.AuthViewModel
 import com.senac.travelapp.ui.viewmodel.LocationUiState
 import com.senac.travelapp.ui.viewmodel.LocationViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import java.util.Locale
+
+// ── Abas da Bottom Bar ────────────────────────────────────────────────────────
+private enum class HomeTab { ROTEIRO, FOTOS }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,18 +57,27 @@ fun MenuScreen(
     val loggedUserId by authViewModel.loggedUserId.collectAsStateWithLifecycle()
     val locationState by locationViewModel.uiState.collectAsStateWithLifecycle()
 
-    // ── Permissão de localização ─────────────────────────────────────
+    // Aba selecionada na bottom bar
+    var selectedTab by remember { mutableStateOf(HomeTab.ROTEIRO) }
+
+    // Extrai viagem ativa (null se não houver)
+    val viagemAtiva: TravelEntity? =
+        (locationState as? LocationUiState.TravelFound)?.viagem
+
+    // Inicializa OSMDroid
+    LaunchedEffect(Unit) {
+        Configuration.getInstance().userAgentValue = context.packageName
+    }
+
+    // ── Permissão de localização ──────────────────────────────────────────────
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (granted) {
-            locationViewModel.fetchLocationAndSearch(loggedUserId)
-        }
+        if (granted) locationViewModel.fetchLocationAndSearch(loggedUserId)
     }
 
-    // Solicita localização ao entrar na tela
     LaunchedEffect(loggedUserId) {
         if (loggedUserId != 0) {
             permissionLauncher.launch(
@@ -64,7 +89,7 @@ fun MenuScreen(
         }
     }
 
-    // ── BackHandler ──────────────────────────────────────────────────
+    // ── BackHandler ───────────────────────────────────────────────────────────
     BackHandler {
         if (drawerState.isOpen) {
             scope.launch { drawerState.close() }
@@ -128,24 +153,144 @@ fun MenuScreen(
                         }
                     }
                 )
+            },
+            // ── Bottom Bar: só aparece quando há viagem ativa ─────────────────
+            bottomBar = {
+                if (viagemAtiva != null) {
+                    NavigationBar {
+                        NavigationBarItem(
+                            selected = selectedTab == HomeTab.ROTEIRO,
+                            onClick = { selectedTab = HomeTab.ROTEIRO },
+                            icon = {
+                                Icon(Icons.Default.ListAlt, contentDescription = null)
+                            },
+                            label = { Text("Roteiro") }
+                        )
+                        NavigationBarItem(
+                            selected = selectedTab == HomeTab.FOTOS,
+                            onClick = {
+                                selectedTab = HomeTab.FOTOS
+                                navController.navigate(
+                                    "fotos/${viagemAtiva.id}/${viagemAtiva.destino}"
+                                )
+                            },
+                            icon = {
+                                Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                            },
+                            label = { Text("Fotos") }
+                        )
+                    }
+                }
             }
         ) { paddingValues ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 24.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // ── Card de localização / viagem ativa ───────────────
                 LocationCard(state = locationState)
+
+                LocationMap(state = locationState)
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 }
+
+// ── Mapa OSMDroid ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun LocationMap(state: LocationUiState) {
+    val cidade = when (state) {
+        is LocationUiState.NoTravel    -> state.cidade
+        is LocationUiState.TravelFound -> state.cidade
+        is LocationUiState.CityFound   -> state.cidade
+        else                           -> null
+    }
+
+    if (cidade == null) return
+
+    val context = LocalContext.current
+    var geoPoint by remember(cidade) { mutableStateOf<GeoPoint?>(null) }
+
+    LaunchedEffect(cidade) {
+        geoPoint = geocodeCidade(context, cidade)
+    }
+
+    val ponto = geoPoint ?: run {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        AndroidView(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp),
+            factory = { ctx ->
+                MapView(ctx).apply {
+                    setTileSource(TileSourceFactory.MAPNIK)
+                    setMultiTouchControls(true)
+                    controller.setZoom(14.0)
+                    controller.setCenter(ponto)
+
+                    val marker = Marker(this).apply {
+                        position = ponto
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = cidade
+                    }
+                    overlays.add(marker)
+                }
+            },
+            update = { mapView ->
+                mapView.overlays.clear()
+                mapView.controller.animateTo(ponto)
+
+                val marker = Marker(mapView).apply {
+                    position = ponto
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    title = cidade
+                }
+                mapView.overlays.add(marker)
+                mapView.invalidate()
+            }
+        )
+    }
+}
+
+private suspend fun geocodeCidade(context: Context, cidade: String): GeoPoint? {
+    return withContext(Dispatchers.IO) {
+        try {
+            val geocoder = android.location.Geocoder(context, Locale.getDefault())
+            @Suppress("DEPRECATION")
+            val resultados = geocoder.getFromLocationName(cidade, 1)
+            if (!resultados.isNullOrEmpty()) {
+                GeoPoint(resultados[0].latitude, resultados[0].longitude)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+// ── Card de localização ───────────────────────────────────────────────────────
 
 @Composable
 private fun LocationCard(state: LocationUiState) {
@@ -172,8 +317,11 @@ private fun LocationCard(state: LocationUiState) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                     Text("Cidade: ${state.cidade}")
                 }
             }
@@ -181,12 +329,19 @@ private fun LocationCard(state: LocationUiState) {
 
         is LocationUiState.NoTravel -> {
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.LocationOn, contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Text(state.cidade, style = MaterialTheme.typography.titleSmall)
                     }
                     Text(
@@ -248,13 +403,15 @@ private fun TravelActiveCard(viagem: TravelEntity, cidade: String) {
                 )
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+            )
 
-            InfoRow(label = "Destino", value = viagem.destino)
-            InfoRow(label = "Tipo", value = viagem.tipo)
-            InfoRow(label = "Início", value = viagem.dataInicio)
-            InfoRow(label = "Fim", value = viagem.dataFim)
-            InfoRow(label = "Orçamento", value = "R$ ${"%.2f".format(viagem.orcamento)}")
+            InfoRow(label = "Destino",     value = viagem.destino)
+            InfoRow(label = "Tipo",        value = viagem.tipo)
+            InfoRow(label = "Início",      value = viagem.dataInicio)
+            InfoRow(label = "Fim",         value = viagem.dataFim)
+            InfoRow(label = "Orçamento",   value = "R$ ${"%.2f".format(viagem.orcamento)}")
             InfoRow(label = "Total gasto", value = "R$ ${"%.2f".format(viagem.gastos)}")
         }
     }

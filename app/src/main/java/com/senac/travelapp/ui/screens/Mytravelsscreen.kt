@@ -78,6 +78,31 @@ fun MyTravelsScreen(
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
     var viagemEditando by remember { mutableStateOf<TravelEntity?>(null) }
+    var viagemASerExcluida by remember { mutableStateOf<TravelEntity?>(null) }
+
+    // Diálogo de confirmação de exclusão
+    viagemASerExcluida?.let { viagem ->
+        AlertDialog(
+            onDismissRequest = { viagemASerExcluida = null },
+            title = { Text("Excluir Viagem") },
+            text = { Text("Tem certeza que deseja excluir a viagem para ${viagem.destino}? Esta ação não pode ser desfeita.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        travelViewModel.deleteTravel(viagem)
+                        viagemASerExcluida = null
+                    }
+                ) {
+                    Text("Excluir")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viagemASerExcluida = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     viagemEditando?.let { viagem ->
         EditTravelDialog(
@@ -133,7 +158,6 @@ fun MyTravelsScreen(
                         }
                     )
 
-                    // CORREÇÃO: usar currentValue em vez de dismissDirection (removido da API)
                     val swipeAtivo = dismissState.currentValue != SwipeToDismissBoxValue.Settled
 
                     SwipeToDismissBox(
@@ -162,7 +186,8 @@ fun MyTravelsScreen(
                     ) {
                         TravelCard(
                             viagem = viagem,
-                            onLongClick = { viagemEditando = viagem }
+                            onLongClick = { viagemEditando = viagem },
+                            onDelete = { viagemASerExcluida = viagem }
                         )
                     }
                 }
@@ -177,7 +202,8 @@ fun MyTravelsScreen(
 @Composable
 private fun TravelCard(
     viagem: TravelEntity,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -225,6 +251,12 @@ private fun TravelCard(
                     text = "R$ ${"%.2f".format(viagem.orcamento)}",
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+
+            if (onDelete != null) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Excluir")
+                }
             }
         }
     }
@@ -361,10 +393,10 @@ private fun EditTravelDialog(
         confirmButton = {
             Button(onClick = {
                 when {
-                    destino.isBlank()              -> erro = "Informe o destino."
-                    dataInicio.isBlank()           -> erro = "Informe a data de início."
-                    dataFim.isBlank()              -> erro = "Informe a data de fim."
-                    orcamento.isBlank()            -> erro = "Informe o orçamento."
+                    destino.isBlank()                  -> erro = "Informe o destino."
+                    dataInicio.isBlank()               -> erro = "Informe a data de início."
+                    dataFim.isBlank()                  -> erro = "Informe a data de fim."
+                    orcamento.isBlank()                -> erro = "Informe o orçamento."
                     orcamento.toDoubleOrNull() == null -> erro = "Orçamento inválido."
                     else -> onConfirm(
                         viagem.copy(

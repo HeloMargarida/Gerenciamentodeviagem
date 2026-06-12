@@ -6,20 +6,23 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.senac.travelapp.data.local.dao.PhotoDao
 import com.senac.travelapp.data.local.dao.TravelDao
 import com.senac.travelapp.data.local.dao.UserDao
+import com.senac.travelapp.data.local.entity.PhotoEntity
 import com.senac.travelapp.data.local.entity.TravelEntity
 import com.senac.travelapp.data.local.entity.UserEntity
 
 @Database(
-    entities = [UserEntity::class, TravelEntity::class],
-    version = 3,
+    entities = [UserEntity::class, TravelEntity::class, PhotoEntity::class],
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun travelDao(): TravelDao
+    abstract fun photoDao(): PhotoDao
 
     companion object {
 
@@ -54,6 +57,23 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // ── Migration 3 → 4: cria tabela photos ───────────────────────
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS photos (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        travelId    INTEGER NOT NULL,
+                        uri         TEXT    NOT NULL,
+                        dataCriacao INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(travelId) REFERENCES travels(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -61,7 +81,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "travel_app_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }

@@ -51,6 +51,12 @@ dependencies {
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
+    // Mapa OpenStreetMap (gratuito, sem API key)
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
