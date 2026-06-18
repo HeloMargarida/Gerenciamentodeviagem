@@ -11,7 +11,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.senac.travelapp.data.local.entity.TravelEntity
 import com.senac.travelapp.ui.screens.ForgotPasswordScreen
+import com.senac.travelapp.ui.screens.ItineraryScreen
 import com.senac.travelapp.ui.screens.LoginScreen
 import com.senac.travelapp.ui.screens.MenuScreen
 import com.senac.travelapp.ui.screens.MyTravelsScreen
@@ -87,6 +89,35 @@ fun AppNavigation(viewModel: AuthViewModel) {
             ) {
                 Text("Travel App v1.0\nDesenvolvido para o trabalho de SENAC.")
             }
+        }
+
+        // ── Tela de roteiro gerado por IA ─────────────────────────────
+        composable(
+            route = "roteiro_ia/{travelId}/{destino}/{tipo}/{dataInicio}/{dataFim}/{orcamento}/{userId}",
+            arguments = listOf(
+                navArgument("travelId") { type = NavType.IntType },
+                navArgument("destino") { type = NavType.StringType },
+                navArgument("tipo") { type = NavType.StringType },
+                navArgument("dataInicio") { type = NavType.StringType },
+                navArgument("dataFim") { type = NavType.StringType },
+                navArgument("orcamento") { type = NavType.StringType },
+                navArgument("userId") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val args = backStackEntry.arguments
+            val viagem = TravelEntity(
+                id = args?.getInt("travelId") ?: 0,
+                destino = args?.getString("destino") ?: "",
+                tipo = args?.getString("tipo") ?: "",
+                dataInicio = args?.getString("dataInicio") ?: "",
+                dataFim = args?.getString("dataFim") ?: "",
+                orcamento = args?.getString("orcamento")?.toDoubleOrNull() ?: 0.0,
+                userId = args?.getInt("userId") ?: 0
+            )
+            ItineraryScreen(
+                navController = navController,
+                viagem = viagem
+            )
         }
     }
 }

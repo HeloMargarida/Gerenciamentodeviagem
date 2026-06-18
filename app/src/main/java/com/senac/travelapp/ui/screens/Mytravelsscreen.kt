@@ -1,5 +1,6 @@
 package com.senac.travelapp.ui.screens
 
+import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
@@ -187,7 +189,20 @@ fun MyTravelsScreen(
                         TravelCard(
                             viagem = viagem,
                             onLongClick = { viagemEditando = viagem },
-                            onDelete = { viagemASerExcluida = viagem }
+                            onDelete = { viagemASerExcluida = viagem },
+                            onGerarRoteiro = {
+                                val destinoCod = Uri.encode(viagem.destino)
+                                val tipoCod = Uri.encode(viagem.tipo)
+                                // dataInicio/dataFim estão no formato dd/MM/yyyy.
+                                // Uri.encode não escapa "/" por padrão, então
+                                // forçamos a codificação dessa barra para não
+                                // quebrar os segmentos da rota de navegação.
+                                val inicioCod = Uri.encode(viagem.dataInicio, "").replace("/", "%2F")
+                                val fimCod = Uri.encode(viagem.dataFim, "").replace("/", "%2F")
+                                navController.navigate(
+                                    "roteiro_ia/${viagem.id}/$destinoCod/$tipoCod/$inicioCod/$fimCod/${viagem.orcamento}/${viagem.userId}"
+                                )
+                            }
                         )
                     }
                 }
@@ -203,7 +218,8 @@ fun MyTravelsScreen(
 private fun TravelCard(
     viagem: TravelEntity,
     onLongClick: () -> Unit,
-    onDelete: (() -> Unit)? = null
+    onDelete: (() -> Unit)? = null,
+    onGerarRoteiro: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -251,6 +267,16 @@ private fun TravelCard(
                     text = "R$ ${"%.2f".format(viagem.orcamento)}",
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+
+            if (onGerarRoteiro != null) {
+                IconButton(onClick = onGerarRoteiro) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = "Gerar roteiro com IA",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             if (onDelete != null) {
