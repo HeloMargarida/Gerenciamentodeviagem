@@ -3,6 +3,8 @@ package com.senac.travelapp.ui.screens
 import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -33,6 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -57,7 +60,7 @@ fun TravelPhotoScreen(
     var photoToDelete by remember { mutableStateOf<PhotoEntity?>(null) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // ── Launcher câmera ───────────────────────────────────────────────
+    // ── Launcher camera ───────────────────────────────────────────────
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
@@ -68,14 +71,21 @@ fun TravelPhotoScreen(
         }
     }
 
-    // ── Launcher galeria ──────────────────────────────────────────────
+    // ── Launcher galeria local (abre FILES do dispositivo, nao Google Photos) ──
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let { photoViewModel.addPhoto(travelId, it.toString()) }
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        result.data?.data?.let { uri ->
+            // Persiste permissao de leitura para a URI selecionada
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            photoViewModel.addPhoto(travelId, uri.toString())
+        }
     }
 
-    // ── Launcher permissão câmera ─────────────────────────────────────
+    // ── Launcher permissao camera ─────────────────────────────────────
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -86,13 +96,20 @@ fun TravelPhotoScreen(
         }
     }
 
-    // ── Diálogo confirmar exclusão ────────────────────────────────────
+    // ── Launcher permissao galeria (Android 12 e abaixo) ─────────────
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        openLocalGallery(context, galleryLauncher)
+    }
+
+    // ── Dialogo confirmar exclusao ────────────────────────────────────
     photoToDelete?.let { photo ->
         AlertDialog(
             onDismissRequest = { photoToDelete = null },
             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
             title = { Text("Excluir foto?") },
-            text = { Text("Esta ação não pode ser desfeita.") },
+            text = { Text("Esta acao nao pode ser desfeita.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -141,7 +158,6 @@ fun TravelPhotoScreen(
     ) { paddingValues ->
 
         if (photos.isEmpty()) {
-            // ── Estado vazio ──────────────────────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -164,7 +180,7 @@ fun TravelPhotoScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "Toque no botão + para\nadicionar fotos à viagem",
+                        "Toque no botao + para\nadicionar fotos a viagem",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
@@ -172,7 +188,6 @@ fun TravelPhotoScreen(
                 }
             }
         } else {
-            // ── Grade de fotos ────────────────────────────────────────
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier
@@ -192,7 +207,7 @@ fun TravelPhotoScreen(
         }
     }
 
-    // ── Bottom Sheet: escolher origem ─────────────────────────────────
+    // ── Bottom Sheet ──────────────────────────────────────────────────
     if (showBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = { showBottomSheet = false }
@@ -210,10 +225,10 @@ fun TravelPhotoScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Câmera
+                // Camera
                 ListItem(
                     headlineContent = { Text("Tirar foto") },
-                    supportingContent = { Text("Usar a câmera do dispositivo") },
+                    supportingContent = { Text("Usar a camera do dispositivo") },
                     leadingContent = {
                         Box(
                             modifier = Modifier
@@ -234,15 +249,24 @@ fun TravelPhotoScreen(
                         .combinedClickable(
                             onClick = {
                                 showBottomSheet = false
-                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                val granted = ContextCompat.checkSelfPermission(
+                                    context, Manifest.permission.CAMERA
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (granted) {
+                                    val uri = createImageUri(context)
+                                    cameraUri = uri
+                                    uri?.let { cameraLauncher.launch(it) }
+                                } else {
+                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                }
                             }
                         )
                 )
 
-                // Galeria
+                // Galeria local
                 ListItem(
                     headlineContent = { Text("Escolher da galeria") },
-                    supportingContent = { Text("Selecionar uma foto existente") },
+                    supportingContent = { Text("Abrir fotos do dispositivo") },
                     leadingContent = {
                         Box(
                             modifier = Modifier
@@ -263,7 +287,22 @@ fun TravelPhotoScreen(
                         .combinedClickable(
                             onClick = {
                                 showBottomSheet = false
-                                galleryLauncher.launch("image/*")
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    // Android 13+: nao precisa de permissao para abrir galeria local
+                                    openLocalGallery(context, galleryLauncher)
+                                } else {
+                                    // Android 12 e abaixo: verifica READ_EXTERNAL_STORAGE
+                                    val granted = ContextCompat.checkSelfPermission(
+                                        context, Manifest.permission.READ_EXTERNAL_STORAGE
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                    if (granted) {
+                                        openLocalGallery(context, galleryLauncher)
+                                    } else {
+                                        storagePermissionLauncher.launch(
+                                            Manifest.permission.READ_EXTERNAL_STORAGE
+                                        )
+                                    }
+                                }
                             }
                         )
                 )
@@ -272,6 +311,23 @@ fun TravelPhotoScreen(
             }
         }
     }
+}
+
+/**
+ * Abre o seletor de imagens local do dispositivo usando ACTION_OPEN_DOCUMENT,
+ * que forca o Files app (nao o Google Photos) e funciona em emuladores.
+ */
+private fun openLocalGallery(
+    context: Context,
+    launcher: androidx.activity.result.ActivityResultLauncher<Intent>
+) {
+    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        addCategory(Intent.CATEGORY_OPENABLE)
+        type = "image/*"
+        // Forca o seletor local de arquivos, ignorando Google Photos
+        putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+    }
+    launcher.launch(intent)
 }
 
 @OptIn(ExperimentalFoundationApi::class)

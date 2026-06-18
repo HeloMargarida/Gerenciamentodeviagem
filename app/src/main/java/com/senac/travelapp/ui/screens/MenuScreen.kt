@@ -6,8 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Info
@@ -40,7 +38,7 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import java.util.Locale
 
-// ── Abas da Bottom Bar ────────────────────────────────────────────────────────
+// Abas da Bottom Bar
 private enum class HomeTab { ROTEIRO, FOTOS }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,10 +55,9 @@ fun MenuScreen(
     val loggedUserId by authViewModel.loggedUserId.collectAsStateWithLifecycle()
     val locationState by locationViewModel.uiState.collectAsStateWithLifecycle()
 
-    // Aba selecionada na bottom bar
     var selectedTab by remember { mutableStateOf(HomeTab.ROTEIRO) }
 
-    // Extrai viagem ativa (null se não houver)
+    // Viagem ativa (null quando nao ha viagem em andamento)
     val viagemAtiva: TravelEntity? =
         (locationState as? LocationUiState.TravelFound)?.viagem
 
@@ -69,7 +66,7 @@ fun MenuScreen(
         Configuration.getInstance().userAgentValue = context.packageName
     }
 
-    // ── Permissão de localização ──────────────────────────────────────────────
+    // Permissao de localizacao
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -89,7 +86,6 @@ fun MenuScreen(
         }
     }
 
-    // ── BackHandler ───────────────────────────────────────────────────────────
     BackHandler {
         if (drawerState.isOpen) {
             scope.launch { drawerState.close() }
@@ -154,16 +150,14 @@ fun MenuScreen(
                     }
                 )
             },
-            // ── Bottom Bar: só aparece quando há viagem ativa ─────────────────
+            // Bottom Bar: aparece apenas quando ha viagem ativa
             bottomBar = {
                 if (viagemAtiva != null) {
                     NavigationBar {
                         NavigationBarItem(
                             selected = selectedTab == HomeTab.ROTEIRO,
                             onClick = { selectedTab = HomeTab.ROTEIRO },
-                            icon = {
-                                Icon(Icons.Default.ListAlt, contentDescription = null)
-                            },
+                            icon = { Icon(Icons.Default.ListAlt, contentDescription = null) },
                             label = { Text("Roteiro") }
                         )
                         NavigationBarItem(
@@ -174,48 +168,62 @@ fun MenuScreen(
                                     "fotos/${viagemAtiva.id}/${viagemAtiva.destino}"
                                 )
                             },
-                            icon = {
-                                Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                            },
+                            icon = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) },
                             label = { Text("Fotos") }
                         )
                     }
                 }
             }
         ) { paddingValues ->
-            Column(
+            // Conteudo principal: mapa ocupa toda a tela quando ha viagem ativa,
+            // senao exibe apenas o card de status
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(horizontal = 24.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LocationCard(state = locationState)
-
-                LocationMap(state = locationState)
-
-                Spacer(modifier = Modifier.height(16.dp))
+                if (viagemAtiva != null) {
+                    // VIAGEM ATIVA: mapa em tela cheia + card sobreposto no topo
+                    MapaViagemAtiva(
+                        state = locationState,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // Card de informacoes da viagem sobreposto no topo do mapa
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        TravelActiveCard(viagem = viagemAtiva, cidade = (locationState as LocationUiState.TravelFound).cidade)
+                    }
+                } else {
+                    // SEM VIAGEM ATIVA: exibe card de status centralizado
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        LocationCard(state = locationState)
+                    }
+                }
             }
         }
     }
 }
 
-// ── Mapa OSMDroid ─────────────────────────────────────────────────────────────
-
+// Mapa que ocupa espaco passado pelo modifier (usado quando ha viagem ativa)
 @Composable
-private fun LocationMap(state: LocationUiState) {
+private fun MapaViagemAtiva(
+    state: LocationUiState,
+    modifier: Modifier = Modifier
+) {
     val cidade = when (state) {
-        is LocationUiState.NoTravel    -> state.cidade
         is LocationUiState.TravelFound -> state.cidade
-        is LocationUiState.CityFound   -> state.cidade
-        else                           -> null
-    }
-
-    if (cidade == null) return
+        else -> null
+    } ?: return
 
     val context = LocalContext.current
     var geoPoint by remember(cidade) { mutableStateOf<GeoPoint?>(null) }
@@ -224,55 +232,43 @@ private fun LocationMap(state: LocationUiState) {
         geoPoint = geocodeCidade(context, cidade)
     }
 
-    val ponto = geoPoint ?: run {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(260.dp),
-            contentAlignment = Alignment.Center
-        ) {
+    val ponto = geoPoint
+
+    if (ponto == null) {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        AndroidView(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(260.dp),
-            factory = { ctx ->
-                MapView(ctx).apply {
-                    setTileSource(TileSourceFactory.MAPNIK)
-                    setMultiTouchControls(true)
-                    controller.setZoom(14.0)
-                    controller.setCenter(ponto)
-
-                    val marker = Marker(this).apply {
-                        position = ponto
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                        title = cidade
-                    }
-                    overlays.add(marker)
-                }
-            },
-            update = { mapView ->
-                mapView.overlays.clear()
-                mapView.controller.animateTo(ponto)
-
-                val marker = Marker(mapView).apply {
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            MapView(ctx).apply {
+                setTileSource(TileSourceFactory.MAPNIK)
+                setMultiTouchControls(true)
+                controller.setZoom(14.0)
+                controller.setCenter(ponto)
+                val marker = Marker(this).apply {
                     position = ponto
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     title = cidade
                 }
-                mapView.overlays.add(marker)
-                mapView.invalidate()
+                overlays.add(marker)
             }
-        )
-    }
+        },
+        update = { mapView ->
+            mapView.overlays.clear()
+            mapView.controller.animateTo(ponto)
+            val marker = Marker(mapView).apply {
+                position = ponto
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                title = cidade
+            }
+            mapView.overlays.add(marker)
+            mapView.invalidate()
+        }
+    )
 }
 
 private suspend fun geocodeCidade(context: Context, cidade: String): GeoPoint? {
@@ -290,8 +286,7 @@ private suspend fun geocodeCidade(context: Context, cidade: String): GeoPoint? {
     }
 }
 
-// ── Card de localização ───────────────────────────────────────────────────────
-
+// Card de status (sem viagem ativa)
 @Composable
 private fun LocationCard(state: LocationUiState) {
     when (state) {
@@ -305,7 +300,7 @@ private fun LocationCard(state: LocationUiState) {
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text("Obtendo sua localização...")
+                    Text("Obtendo sua localizacao...")
                 }
             }
         }
@@ -317,11 +312,7 @@ private fun LocationCard(state: LocationUiState) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Text("Cidade: ${state.cidade}")
                 }
             }
@@ -329,19 +320,9 @@ private fun LocationCard(state: LocationUiState) {
 
         is LocationUiState.NoTravel -> {
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Text(state.cidade, style = MaterialTheme.typography.titleSmall)
                     }
                     Text(
@@ -354,15 +335,13 @@ private fun LocationCard(state: LocationUiState) {
         }
 
         is LocationUiState.TravelFound -> {
-            TravelActiveCard(viagem = state.viagem, cidade = state.cidade)
+            // Tratado no bloco principal (mapa + card sobrepostos)
         }
 
         is LocationUiState.Error -> {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
             ) {
                 Text(
                     text = state.message,
@@ -375,17 +354,19 @@ private fun LocationCard(state: LocationUiState) {
     }
 }
 
+// Card de viagem ativa (sobreposto ao mapa)
 @Composable
 private fun TravelActiveCard(viagem: TravelEntity, cidade: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -397,22 +378,16 @@ private fun TravelActiveCard(viagem: TravelEntity, cidade: String) {
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    "Viagem ativa em $cidade",
-                    style = MaterialTheme.typography.titleMedium,
+                    "Viagem ativa: ${viagem.destino}",
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
-
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+            Text(
+                "${viagem.dataInicio} ate ${viagem.dataFim}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
-
-            InfoRow(label = "Destino",     value = viagem.destino)
-            InfoRow(label = "Tipo",        value = viagem.tipo)
-            InfoRow(label = "Início",      value = viagem.dataInicio)
-            InfoRow(label = "Fim",         value = viagem.dataFim)
-            InfoRow(label = "Orçamento",   value = "R$ ${"%.2f".format(viagem.orcamento)}")
-            InfoRow(label = "Total gasto", value = "R$ ${"%.2f".format(viagem.gastos)}")
         }
     }
 }
@@ -423,15 +398,7 @@ private fun InfoRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
-        )
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+        Text(text = value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }
