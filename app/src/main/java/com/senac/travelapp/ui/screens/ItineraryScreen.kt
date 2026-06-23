@@ -21,6 +21,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,6 +92,11 @@ fun ItineraryScreen(
                 placeholder = {
                     Text("Ex: viajando em família, prefiro hotéis perto da praia, gosto de comida local...")
                 },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    capitalization = KeyboardCapitalization.Sentences,
+                    autoCorrect = false
+                ),
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth()
             )

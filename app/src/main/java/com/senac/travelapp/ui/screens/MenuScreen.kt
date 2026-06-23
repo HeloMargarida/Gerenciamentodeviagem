@@ -2,6 +2,7 @@ package com.senac.travelapp.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -156,7 +157,20 @@ fun MenuScreen(
                     NavigationBar {
                         NavigationBarItem(
                             selected = selectedTab == HomeTab.ROTEIRO,
-                            onClick = { selectedTab = HomeTab.ROTEIRO },
+                            onClick = {
+                                selectedTab = HomeTab.ROTEIRO
+                                val destinoCod = Uri.encode(viagemAtiva.destino)
+                                val tipoCod = Uri.encode(viagemAtiva.tipo)
+                                // dataInicio/dataFim estao no formato dd/MM/yyyy.
+                                // Uri.encode nao escapa "/" por padrao, entao
+                                // forcamos a codificacao dessa barra para nao
+                                // quebrar os segmentos da rota de navegacao.
+                                val inicioCod = Uri.encode(viagemAtiva.dataInicio, "").replace("/", "%2F")
+                                val fimCod = Uri.encode(viagemAtiva.dataFim, "").replace("/", "%2F")
+                                navController.navigate(
+                                    "roteiro_ia/${viagemAtiva.id}/$destinoCod/$tipoCod/$inicioCod/$fimCod/${viagemAtiva.orcamento}/${viagemAtiva.userId}"
+                                )
+                            },
                             icon = { Icon(Icons.Default.ListAlt, contentDescription = null) },
                             label = { Text("Roteiro") }
                         )

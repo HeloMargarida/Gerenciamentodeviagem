@@ -15,7 +15,7 @@ data class Part(
 
 data class GenerationConfig(
     val temperature: Double = 0.7,
-    val maxOutputTokens: Int = 2048
+    val maxOutputTokens: Int = 8192
 )
 
 data class GeminiResponse(
@@ -23,7 +23,8 @@ data class GeminiResponse(
 )
 
 data class Candidate(
-    val content: ContentResponse?
+    val content: ContentResponse?,
+    val finishReason: String? = null
 )
 
 data class ContentResponse(

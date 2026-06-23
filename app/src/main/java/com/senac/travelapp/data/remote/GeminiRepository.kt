@@ -28,13 +28,22 @@ object GeminiRepository {
             request = request
         )
 
-        val texto = response.candidates
-            ?.firstOrNull()
+        val candidate = response.candidates?.firstOrNull()
+
+        val texto = candidate
             ?.content
             ?.parts
             ?.joinToString(separator = "") { it.text }
-
-        return texto?.trim()
+            ?.trim()
             ?: throw Exception("Resposta da IA vazia ou em formato inesperado.")
+
+        // Se a resposta foi cortada por limite de tamanho, avisa o usuario
+        return if (candidate.finishReason == "MAX_TOKENS") {
+            texto + "\n\n⚠️ O roteiro foi cortado por ser muito extenso para o período " +
+                    "informado. Tente reduzir o número de dias da viagem ou peça um " +
+                    "roteiro mais resumido nas preferências."
+        } else {
+            texto
+        }
     }
 }
